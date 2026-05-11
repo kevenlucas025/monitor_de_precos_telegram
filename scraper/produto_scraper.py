@@ -1,10 +1,16 @@
-import re
-import time
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+
+def converter_preco(valor):
+    return float(valor.replace(".", "").replace(",", "."))
 
 
 def obter_precos(url):
+
     options = Options()
     options.add_argument("--headless=new")
     options.add_argument("--disable-blink-features=AutomationControlled")
@@ -14,33 +20,63 @@ def obter_precos(url):
 
     try:
         driver.get(url)
-        time.sleep(5)
+        wait = WebDriverWait(driver, 15)
 
-        html = driver.page_source
+        # título
+        titulo = wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "h1.ui-pdp-title"))
+        ).text
 
-        # 🔥 pega todos os preços da página
-        precos = re.findall(r"R\$\s?([\d\.\,]+)", html)
+        # preço atual
+        preco_atual_el = wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".andes-money-amount__fraction"))
+        )
 
-        valores = []
-        for p in precos:
-            try:
-                p = float(p.replace(".", "").replace(",", "."))
-                valores.append(p)
-            except:
-                pass
+        # preço antigo
+        try:
+            preco_antigo_el = driver.find_element(
+                By.CSS_SELECTOR,
+                "s .andes-money-amount__fraction"
+            )
+            preco_antigo = converter_preco(preco_antigo_el.text)
+        except:
+            preco_antigo = 0
 
-        driver.quit()
+        preco_atual = converter_preco(preco_atual_el.text)
 
-        if not valores:
-            raise Exception("Nenhum preço encontrado")
+        # desconto seguro
+        desconto = 0
+        if preco_antigo > 0:
+            desconto = ((preco_antigo - preco_atual) / preco_antigo) * 100
 
-        # 🔥 lógica importante:
-        preco_atual = min(valores)      # menor = promoção
-        preco_antigo = max(valores)     # maior = riscado
+        # imagem (sempre tenta pegar)
+        try:
+            imagem_element = driver.find_element(
+                By.CSS_SELECTOR,
+                "img.ui-pdp-gallery__figure__image"
+            )
+
+            imagem = imagem_element.get_attribute("data-zoom") or imagem_element.get_attribute("src")
+
+        except:
+            imagem = None
+
+        # parcelamento seguro
+        try:
+            parcelamento = driver.find_element(
+                By.CSS_SELECTOR,
+                ".ui-pdp-installments"
+            ).text
+        except:
+            parcelamento = None
 
         return {
+            "titulo": titulo,
             "atual": preco_atual,
-            "antigo": preco_antigo
+            "antigo": preco_antigo,
+            "imagem": imagem,
+            "desconto": round(desconto, 1),
+            "parcelamento": parcelamento
         }
 
     finally:
