@@ -14,6 +14,8 @@ import time
 
 INTERVALO_ENVIO = 120  # 2 minutos
 
+def formatar_br(valor):
+    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 def rodar_bot():
     print("Iniciando coleta...")
@@ -51,15 +53,15 @@ def rodar_bot():
             print(f"Atual: {preco_atual}")
             print(f"Antigo: {preco_antigo}")
 
-            if preco_atual < preco_antigo:
+            if preco_antigo > 0 and preco_atual < preco_antigo:
 
                 print("🔥 PROMOÇÃO ENCONTRADA!")
 
                 enviar_mensagem_com_foto(
                     f"🔥 PROMOÇÃO ENCONTRADA!\n\n"
                     f"<b> {dados['titulo']}</b>\n\n"
-                    f"💸 Antes: R$ {preco_antigo:.2f}\n"
-                    f"💰 Agora: R$ {preco_atual:.2f}\n"
+                    f"💸 Antes: {formatar_br(preco_antigo)}\n"
+                    f"💰 Agora: {formatar_br(preco_atual)}\n"
                     f"📉 Desconto: {dados['desconto']}%\n\n"
                     f"💳 {dados['parcelamento']}\n\n"
                     f"🔗 {url}",

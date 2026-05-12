@@ -29,46 +29,72 @@ def obter_precos(url):
 
         # preço atual
         preco_atual_el = wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".andes-money-amount__fraction"))
-        )
-
-        # preço antigo
-        try:
-            preco_antigo_el = driver.find_element(
-                By.CSS_SELECTOR,
-                "s .andes-money-amount__fraction"
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, ".ui-pdp-price__second-line .andes-money-amount__fraction")
             )
-            preco_antigo = converter_preco(preco_antigo_el.text)
-        except:
-            preco_antigo = 0
+        )
 
         preco_atual = converter_preco(preco_atual_el.text)
 
+        preco_antigo = 0
+
+        try:
+            antigo_el = driver.find_element(
+                By.CSS_SELECTOR,
+                ".ui-pdp-price__original-value s .andes-money-amount__fraction"
+            )
+            preco_antigo = converter_preco(antigo_el.text)
+
+        except:
+            try:
+                # fallback direto no <s> (mais confiável no Mercado Livre)
+                antigo_el = driver.find_element(By.CSS_SELECTOR, "s .andes-money-amount__fraction")
+                preco_antigo = converter_preco(antigo_el.text)
+
+            except:
+                preco_antigo = 0
+
         # desconto seguro
         desconto = 0
-        if preco_antigo > 0:
+        if preco_antigo > 0 and preco_atual < preco_antigo:
             desconto = ((preco_antigo - preco_atual) / preco_antigo) * 100
 
-        # imagem (sempre tenta pegar)
+        # imagem
         try:
             imagem_element = driver.find_element(
                 By.CSS_SELECTOR,
                 "img.ui-pdp-gallery__figure__image"
             )
 
-            imagem = imagem_element.get_attribute("data-zoom") or imagem_element.get_attribute("src")
+            imagem = (
+                imagem_element.get_attribute("data-zoom")
+                or imagem_element.get_attribute("src")
+            )
 
         except:
-            imagem = None
+            imagem = None 
+        
+        # parcelamento
+        parcelamento = "Consulte as opções de parcelamento"
 
-        # parcelamento seguro
         try:
-            parcelamento = driver.find_element(
+
+            elementos = driver.find_elements(
                 By.CSS_SELECTOR,
-                ".ui-pdp-installments"
-            ).text
+                ".ui-pdp-color--BLACK.ui-pdp-family--REGULAR"
+            )
+
+            for el in elementos:
+
+                texto = " ".join(el.text.split())
+                texto = texto.replace(" , ", ",")
+
+                if "x" in texto and "R$" in texto:
+                    parcelamento = texto
+                    break
+
         except:
-            parcelamento = None
+            parcelamento = "Consulte as opções de parcelamento"
 
         return {
             "titulo": titulo,
