@@ -10,19 +10,24 @@ import time
 def criar_driver():
     options = Options()
 
-    # 🔥 modo produção (Railway)
-    options.add_argument("--headless=new")  # obrigatório no Railway
+    # 🔥 obrigatório no Railway
+    options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1920,1080")
 
-    # estabilidade Chrome em container
+    # 🔥 estabilidade extra (ESSENCIAL no ML)
     options.add_argument("--disable-gpu")
     options.add_argument("--disable-extensions")
-    options.add_argument("--disable-background-networking")
-    options.add_argument("--disable-background-timer-throttling")
-    options.add_argument("--disable-renderer-backgrounding")
-    options.add_argument("--disable-features=TranslateUI")
+    options.add_argument("--disable-application-cache")
+    options.add_argument("--disable-infobars")
+    options.add_argument("--disable-notifications")
+
+    # 🔥 evita crash de renderização
+    options.add_argument("--blink-settings=imagesEnabled=false")
+
+    # 🔥 reduz carga absurda do Mercado Livre
+    options.add_argument("--disable-javascript-harmony-shipping")
 
     driver = webdriver.Chrome(options=options)
 
