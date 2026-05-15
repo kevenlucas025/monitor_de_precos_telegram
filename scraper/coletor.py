@@ -10,25 +10,25 @@ def criar_driver():
 
     options = Options()
 
-    # chromium do linux/docker
     options.binary_location = "/usr/bin/chromium"
 
-    # docker flags
+    # obrigatório em container
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
 
     # estabilidade
+    options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
-    options.add_argument("--disable-blink-features=AutomationControlled")
+
+    # evita crash no render
+    options.add_argument("--disable-software-rasterizer")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-setuid-sandbox")
+
+    # anti travamento
     options.add_argument("--remote-debugging-port=9222")
 
-    # evita alguns crashes
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-infobars")
-
-    # Selenium Manager baixa driver correto automaticamente
     driver = webdriver.Chrome(options=options)
 
     return driver
