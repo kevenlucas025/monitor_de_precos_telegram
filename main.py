@@ -126,7 +126,10 @@ def main():
             rodar_bot()
 
         except Exception as e:
-            print("💥 ERRO NO LOOP:", e)
+            import traceback
+
+            print("💥 ERRO GERAL NO LOOP")
+            print(traceback.format_exc())
 
         time.sleep(10)
 

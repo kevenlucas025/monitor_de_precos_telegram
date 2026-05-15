@@ -1,6 +1,7 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import traceback
 
 
 def converter_preco(valor):
@@ -9,7 +10,11 @@ def converter_preco(valor):
 
 def obter_precos(driver, url):
 
+    print(f"🟡 Abrindo produto: {url}")
+
     driver.get(url)
+
+    print("✅ Página do produto carregada")
 
     wait = WebDriverWait(driver, 20)
 
@@ -18,6 +23,8 @@ def obter_precos(driver, url):
             (By.CSS_SELECTOR, "h1.ui-pdp-title")
         )
     ).text
+
+    print(f"✅ Produto: {titulo}")
 
     preco_atual_el = wait.until(
         EC.presence_of_element_located(
@@ -30,9 +37,12 @@ def obter_precos(driver, url):
 
     preco_atual = converter_preco(preco_atual_el.text)
 
+    print(f"💰 Preço atual: {preco_atual}")
+
     preco_antigo = 0
 
     try:
+
         antigo_el = driver.find_element(
             By.CSS_SELECTOR,
             ".ui-pdp-price__original-value s .andes-money-amount__fraction"
@@ -40,25 +50,21 @@ def obter_precos(driver, url):
 
         preco_antigo = converter_preco(antigo_el.text)
 
+        print(f"💸 Preço antigo: {preco_antigo}")
+
     except:
-        try:
-            antigo_el = driver.find_element(
-                By.CSS_SELECTOR,
-                "s .andes-money-amount__fraction"
-            )
-
-            preco_antigo = converter_preco(antigo_el.text)
-
-        except:
-            preco_antigo = 0
+        print("⚠️ Produto sem preço antigo")
 
     desconto = 0
 
     if preco_antigo > 0 and preco_atual < preco_antigo:
+
         desconto = (
             (preco_antigo - preco_atual)
             / preco_antigo
         ) * 100
+
+        print(f"🔥 Desconto: {round(desconto,1)}%")
 
     try:
 
@@ -72,8 +78,13 @@ def obter_precos(driver, url):
             or imagem_element.get_attribute("src")
         )
 
+        print("✅ Imagem encontrada")
+
     except:
+
         imagem = None
+
+        print("⚠️ Imagem não encontrada")
 
     return {
         "titulo": titulo,
