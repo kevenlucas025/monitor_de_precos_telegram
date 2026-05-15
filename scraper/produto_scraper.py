@@ -1,6 +1,7 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 import traceback
 
 
@@ -42,18 +43,26 @@ def obter_precos(driver, url):
     preco_antigo = 0
 
     try:
-
-        antigo_el = driver.find_element(
-            By.CSS_SELECTOR,
-            ".ui-pdp-price__original-value s .andes-money-amount__fraction"
+        antigo_el = WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((
+                By.XPATH,
+                "//s//span[contains(@class,'andes-money-amount__fraction')]"
+            ))
         )
 
         preco_antigo = converter_preco(antigo_el.text)
 
-        print(f"💸 Preço antigo: {preco_antigo}")
+    except TimeoutException:
+        try:
+            antigo_el = driver.find_element(
+                By.XPATH,
+                "//div[contains(@class,'ui-pdp-price__second-line')]//s//span"
+            )
+            preco_antigo = converter_preco(antigo_el.text)
 
-    except:
-        print("⚠️ Produto sem preço antigo")
+        except:
+            print("⚠️ preço antigo não encontrado no DOM atual")
+            preco_antigo = 0
 
     desconto = 0
 

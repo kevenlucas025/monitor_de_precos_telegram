@@ -25,90 +25,87 @@ INTERVALO_ENVIO = 120
 def formatar_br(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-
+def log(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 # =========================
 # LOOP PRINCIPAL
 # =========================
 def rodar_bot():
 
-    print("\n=== INICIANDO CICLO ===")
+    log("=== INICIANDO CICLO ===")
 
     db = conectar()
 
     if not pode_enviar(db):
-        print("Limite diário atingido")
+        log("⛔ Limite diário atingido")
         return
 
+    log("🟡 Criando driver...")
     driver = criar_driver()
+    log("✅ Driver criado")
 
     try:
-
+        log("🟡 Coletando ofertas...")
         links = coletar_ofertas(driver)
 
         novos_links = [url for url in links if url not in links_processados]
 
-        print(f"{len(novos_links)} produtos novos encontrados")
+        log(f"🔎 {len(novos_links)} produtos novos encontrados")
 
-        for url in novos_links:
+        for i, url in enumerate(novos_links):
+
+            log(f"\n📦 [{i+1}/{len(novos_links)}] Analisando produto")
+            log(f"🔗 {url}")
 
             links_processados.add(url)
 
             try:
-
                 if produto_ja_enviado(url):
-                    print("Já enviado, pulando...")
+                    log("⚠️ Já enviado, pulando")
                     continue
 
-                print("\nAnalisando:", url)
+                log("🟡 Abrindo página do produto...")
+                dados = obter_precos(driver, url)
 
-                dados = obter_precos(driver,url)
+                log(f"💰 Preço atual: {dados['atual']}")
+                log(f"🏷️ Preço antigo: {dados['antigo']}")
 
-                preco_atual = dados["atual"]
-                preco_antigo = dados["antigo"]
-
-                if not (preco_antigo > 0 and preco_atual < preco_antigo):
-                    print("Sem promoção")
+                if not (dados["antigo"] > 0 and dados["atual"] < dados["antigo"]):
+                    log("❌ Sem promoção detectada")
                     continue
 
-                print("🔥 PROMOÇÃO ENCONTRADA")
+                log("🔥 PROMOÇÃO ENCONTRADA")
 
-                # gera link afiliado
                 gerar_link_afiliado(driver, url)
+                link_curto = copiar_link_curto(driver) or url
 
-                # pega link curto
-                link_curto = copiar_link_curto(driver)
+                log("📤 Enviando Telegram...")
 
-                if not link_curto:
-                    print("Falha ao copiar link, usando fallback")
-                    link_curto = url
-
-                # envia telegram
                 enviar_mensagem_com_foto(
                     f"🔥 PROMOÇÃO ENCONTRADA!\n\n"
                     f"<b>{dados['titulo']}</b>\n\n"
-                    f"💸 Antes: {formatar_br(preco_antigo)}\n"
-                    f"💰 Agora: {formatar_br(preco_atual)}\n"
+                    f"💸 Antes: {formatar_br(dados['antigo'])}\n"
+                    f"💰 Agora: {formatar_br(dados['atual'])}\n"
                     f"📉 Desconto: {dados['desconto']}%\n\n"
-                    f"💳 {dados['parcelamento']}\n\n"
-                    f"🔗 Link: {link_curto}",
+                    f"🔗 {link_curto}",
                     dados["imagem"]
                 )
 
                 registrar_envio(db)
                 registrar_produto_enviado(url)
 
-                print("Enviado com sucesso")
+                log("✅ Enviado com sucesso")
 
-                # delay entre envios (CORRETO)
-                print("Aguardando 2 minutos antes do próximo envio...\n")
+                log("⏳ Aguardando 2 minutos...")
                 time.sleep(INTERVALO_ENVIO)
 
             except Exception:
                 import traceback
-                print("ERRO COMPLETO:")
+                log("💥 ERRO AO PROCESSAR PRODUTO")
                 print(traceback.format_exc())
 
     finally:
+        log("🧹 Fechando driver")
         driver.quit()
 
 
@@ -118,18 +115,15 @@ def rodar_bot():
 def main():
     criar_tabelas()
 
-    print("APP INICIOU")
+    log("APP INICIOU")
 
     while True:
         try:
-            print("🔥 NOVO CICLO")
+            log("🔥 NOVO CICLO INICIADO")
             rodar_bot()
 
         except Exception as e:
-            import traceback
-
-            print("💥 ERRO GERAL NO LOOP")
-            print(traceback.format_exc())
+            log(f"💥 ERRO NO LOOP: {e}")
 
         time.sleep(10)
 
