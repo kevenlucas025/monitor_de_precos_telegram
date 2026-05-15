@@ -1,8 +1,10 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 import os
 
 
@@ -17,17 +19,22 @@ def obter_precos(url):
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--headless=new")
-    options.add_argument("--remote-debugging-port=9222")
     options.add_argument("--disable-gpu")
     options.add_argument("--disable-software-rasterizer")
     options.add_argument("--disable-features=VizDisplayCompositor")
+    options.add_argument("--window-size=1920,1080")
 
+    # importante no Docker
     if os.path.exists("/usr/bin/chromium"):
         options.binary_location = "/usr/bin/chromium"
 
     options.add_argument("user-agent=Mozilla/5.0")
 
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()),
+        options=options
+    )
+
     driver.set_page_load_timeout(30)
 
     try:
@@ -35,12 +42,17 @@ def obter_precos(url):
         wait = WebDriverWait(driver, 15)
 
         titulo = wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "h1.ui-pdp-title"))
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "h1.ui-pdp-title")
+            )
         ).text
 
         preco_atual_el = wait.until(
             EC.presence_of_element_located(
-                (By.CSS_SELECTOR, ".ui-pdp-price__second-line .andes-money-amount__fraction")
+                (
+                    By.CSS_SELECTOR,
+                    ".ui-pdp-price__second-line .andes-money-amount__fraction"
+                )
             )
         )
 
