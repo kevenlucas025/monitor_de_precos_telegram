@@ -61,7 +61,7 @@ def rodar_bot():
 
                 print("\nAnalisando:", url)
 
-                dados = obter_precos(url)
+                dados = obter_precos(driver,url)
 
                 preco_atual = dados["atual"]
                 preco_antigo = dados["antigo"]
