@@ -11,7 +11,6 @@ import time
 
 
 def criar_driver():
-
     options = Options()
 
     options.add_argument("--headless=new")
@@ -19,13 +18,10 @@ def criar_driver():
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
+    options.add_argument("--remote-debugging-port=9222")
 
-    driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
-        options=options
-    )
-
-    return driver  
+    driver = webdriver.Chrome(options=options)
+    return driver
 
 
 def gerar_link_afiliado(driver, url_produto):
