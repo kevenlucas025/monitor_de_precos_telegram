@@ -12,25 +12,34 @@ def converter_preco(valor):
 def obter_precos(url):
 
     options = Options()
-    options.add_argument("--headless=new")
+
+    # options.add_argument("--headless=new")
+
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("user-agent=Mozilla/5.0")
 
     driver = webdriver.Chrome(options=options)
 
     try:
+
         driver.get(url)
+
         wait = WebDriverWait(driver, 15)
 
         # título
         titulo = wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "h1.ui-pdp-title"))
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "h1.ui-pdp-title")
+            )
         ).text
 
         # preço atual
         preco_atual_el = wait.until(
             EC.presence_of_element_located(
-                (By.CSS_SELECTOR, ".ui-pdp-price__second-line .andes-money-amount__fraction")
+                (
+                    By.CSS_SELECTOR,
+                    ".ui-pdp-price__second-line .andes-money-amount__fraction"
+                )
             )
         )
 
@@ -39,28 +48,40 @@ def obter_precos(url):
         preco_antigo = 0
 
         try:
+
             antigo_el = driver.find_element(
                 By.CSS_SELECTOR,
                 ".ui-pdp-price__original-value s .andes-money-amount__fraction"
             )
+
             preco_antigo = converter_preco(antigo_el.text)
 
         except:
+
             try:
-                # fallback direto no <s> (mais confiável no Mercado Livre)
-                antigo_el = driver.find_element(By.CSS_SELECTOR, "s .andes-money-amount__fraction")
+
+                antigo_el = driver.find_element(
+                    By.CSS_SELECTOR,
+                    "s .andes-money-amount__fraction"
+                )
+
                 preco_antigo = converter_preco(antigo_el.text)
 
             except:
+
                 preco_antigo = 0
 
-        # desconto seguro
         desconto = 0
+
         if preco_antigo > 0 and preco_atual < preco_antigo:
-            desconto = ((preco_antigo - preco_atual) / preco_antigo) * 100
+
+            desconto = (
+                (preco_antigo - preco_atual) / preco_antigo
+            ) * 100
 
         # imagem
         try:
+
             imagem_element = driver.find_element(
                 By.CSS_SELECTOR,
                 "img.ui-pdp-gallery__figure__image"
@@ -72,29 +93,10 @@ def obter_precos(url):
             )
 
         except:
-            imagem = None 
-        
-        # parcelamento
+
+            imagem = None
+
         parcelamento = "Consulte as opções de parcelamento"
-
-        try:
-
-            elementos = driver.find_elements(
-                By.CSS_SELECTOR,
-                ".ui-pdp-color--BLACK.ui-pdp-family--REGULAR"
-            )
-
-            for el in elementos:
-
-                texto = " ".join(el.text.split())
-                texto = texto.replace(" , ", ",")
-
-                if "x" in texto and "R$" in texto:
-                    parcelamento = texto
-                    break
-
-        except:
-            parcelamento = "Consulte as opções de parcelamento"
 
         return {
             "titulo": titulo,
@@ -106,4 +108,5 @@ def obter_precos(url):
         }
 
     finally:
+
         driver.quit()

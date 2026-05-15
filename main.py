@@ -1,5 +1,10 @@
-from scraper.coletor import coletar_ofertas
-from database.db import criar_tabelas
+from scraper.coletor import (
+    criar_driver,
+    coletar_ofertas,
+    gerar_link_afiliado,
+    copiar_link_curto
+)
+
 from scraper.produto_scraper import obter_precos
 from notificacao.telegram import enviar_mensagem_com_foto
 from database.db import (
@@ -7,18 +12,26 @@ from database.db import (
     pode_enviar,
     registrar_envio,
     produto_ja_enviado,
-    registrar_produto_enviado
+    registrar_produto_enviado,
+    criar_tabelas
 )
+
 import time
 
+links_processados = set()
+INTERVALO_ENVIO = 120
 
-INTERVALO_ENVIO = 120  # 2 minutos
 
 def formatar_br(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+
+# =========================
+# LOOP PRINCIPAL
+# =========================
 def rodar_bot():
-    print("Iniciando coleta...")
+
+    print("\n=== INICIANDO CICLO ===")
 
     db = conectar()
 
@@ -26,64 +39,83 @@ def rodar_bot():
         print("Limite diário atingido")
         return
 
-    links = coletar_ofertas()
+    driver = criar_driver()
 
-    print(f"{len(links)} links encontrados")
+    try:
 
-    enviados = 0
+        links = coletar_ofertas(driver)
 
-    for url in links:
+        novos_links = [url for url in links if url not in links_processados]
 
-        if enviados >= 10:
-            break
+        print(f"{len(novos_links)} produtos novos encontrados")
 
-        try:
+        for url in novos_links:
 
-            if produto_ja_enviado(url):
-                print("Produto já enviado anteriormente, pulando...")
-                continue
+            links_processados.add(url)
 
-            print(f"Analisando: {url}")
+            try:
 
-            dados = obter_precos(url)
+                if produto_ja_enviado(url):
+                    print("Já enviado, pulando...")
+                    continue
 
-            preco_atual = dados["atual"]
-            preco_antigo = dados["antigo"]
+                print("\nAnalisando:", url)
 
-            print(f"Atual: {preco_atual}")
-            print(f"Antigo: {preco_antigo}")
+                dados = obter_precos(url)
 
-            if preco_antigo > 0 and preco_atual < preco_antigo:
+                preco_atual = dados["atual"]
+                preco_antigo = dados["antigo"]
 
-                print("🔥 PROMOÇÃO ENCONTRADA!")
+                if not (preco_antigo > 0 and preco_atual < preco_antigo):
+                    print("Sem promoção")
+                    continue
 
+                print("🔥 PROMOÇÃO ENCONTRADA")
+
+                # gera link afiliado
+                gerar_link_afiliado(driver, url)
+
+                # pega link curto
+                link_curto = copiar_link_curto(driver)
+
+                if not link_curto:
+                    print("Falha ao copiar link, usando fallback")
+                    link_curto = url
+
+                # envia telegram
                 enviar_mensagem_com_foto(
                     f"🔥 PROMOÇÃO ENCONTRADA!\n\n"
-                    f"<b> {dados['titulo']}</b>\n\n"
+                    f"<b>{dados['titulo']}</b>\n\n"
                     f"💸 Antes: {formatar_br(preco_antigo)}\n"
                     f"💰 Agora: {formatar_br(preco_atual)}\n"
                     f"📉 Desconto: {dados['desconto']}%\n\n"
                     f"💳 {dados['parcelamento']}\n\n"
-                    f"🔗 {url}",
+                    f"🔗 Link: {link_curto}",
                     dados["imagem"]
                 )
 
-                registrar_produto_enviado(url)
                 registrar_envio(db)
+                registrar_produto_enviado(url)
 
-                enviados += 1
+                print("Enviado com sucesso")
 
-                print("⏳ Aguardando 2 minutos antes do próximo envio...")
+                # delay entre envios (CORRETO)
+                print("Aguardando 2 minutos antes do próximo envio...\n")
                 time.sleep(INTERVALO_ENVIO)
 
-        except Exception as e:
-            print(f"ERRO: {e}")
+            except Exception:
+                import traceback
+                print("ERRO COMPLETO:")
+                print(traceback.format_exc())
+
+    finally:
+        driver.quit()
 
 
+# =========================
+# LOOP INFINITO
+# =========================
 criar_tabelas()
 
 while True:
     rodar_bot()
-    print("Aguardando 10 segundos...")
-    #time.sleep(300) 5 minutos
-    time.sleep(10)

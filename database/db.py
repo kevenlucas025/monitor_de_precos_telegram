@@ -116,10 +116,23 @@ def registrar_envio(db):
 
     cursor = db.cursor()
 
-    cursor.execute("SELECT total FROM controle_envio WHERE data = ?", (hoje,))
-    total = cursor.fetchone()[0]
+    cursor.execute("""
+        SELECT total FROM controle_envio WHERE data = ?
+    """, (hoje,))
 
-    cursor.execute("UPDATE controle_envio SET total = ? WHERE data = ?", (total + 1, hoje))
+    resultado = cursor.fetchone()
+
+    if resultado:
+        cursor.execute("""
+            UPDATE controle_envio
+            SET total = total + 1
+            WHERE data = ?
+        """, (hoje,))
+    else:
+        cursor.execute("""
+            INSERT INTO controle_envio (data, total)
+            VALUES (?, 1)
+        """, (hoje,))
 
     db.commit()
     
