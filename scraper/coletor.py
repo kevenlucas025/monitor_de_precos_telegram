@@ -32,7 +32,7 @@ def gerar_link_afiliado(driver, url_produto):
 
     wait = WebDriverWait(driver, 30)
 
-    print("Abrindo link builder...")
+    print("Abrindo link builder....")
 
     driver.get(
         "https://www.mercadolivre.com.br/afiliados/linkbuilder#hub"
