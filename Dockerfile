@@ -15,4 +15,4 @@ COPY . .
 
 ENV CHROME_BIN=/usr/bin/chromium
 
-CMD ["python", "main.py"]
+CMD ["sh", "-c", "python -u main.py"]
