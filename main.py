@@ -7,6 +7,7 @@ from scraper.coletor import (
 
 from scraper.produto_scraper import obter_precos
 from notificacao.telegram import enviar_mensagem_com_foto
+from scraper.cookies import carregar_cookies
 from database.db import (
     conectar,
     pode_enviar,
@@ -42,6 +43,7 @@ def rodar_bot():
 
     log("🟡 Criando driver...")
     driver = criar_driver()
+    carregar_cookies(driver)
     log("✅ Driver criado")
 
     try:

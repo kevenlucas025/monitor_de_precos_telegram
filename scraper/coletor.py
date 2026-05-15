@@ -8,57 +8,25 @@ import time
 
 
 def criar_driver():
-
-    print("🟡 Iniciando Chrome...")
-
     options = Options()
 
-    options.binary_location = "/usr/bin/chromium"
-
-    # obrigatório no railway
-    #options.add_argument("--headless=new")
+    # 🔥 modo produção (Railway)
+    options.add_argument("--headless=new")  # obrigatório no Railway
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-
-    # estabilidade
-    options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
 
-    # evita crash
-    options.add_argument("--disable-software-rasterizer")
+    # estabilidade Chrome em container
+    options.add_argument("--disable-gpu")
     options.add_argument("--disable-extensions")
-    options.add_argument("--disable-setuid-sandbox")
+    options.add_argument("--disable-background-networking")
+    options.add_argument("--disable-background-timer-throttling")
+    options.add_argument("--disable-renderer-backgrounding")
+    options.add_argument("--disable-features=TranslateUI")
 
-    # chromium em container
-    options.add_argument("--single-process")
-    options.add_argument("--no-zygote")
+    driver = webdriver.Chrome(options=options)
 
-    # anti travamento
-    options.add_argument("--remote-debugging-port=9222")
-
-    # user agent
-    options.add_argument(
-        "--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
-    )
-
-    try:
-
-        driver = webdriver.Chrome(options=options)
-
-        print("✅ Chrome iniciado")
-
-        driver.set_page_load_timeout(60)
-
-        print("✅ Timeout configurado")
-
-        return driver
-
-    except Exception:
-
-        print("❌ ERRO AO INICIAR DRIVER")
-        print(traceback.format_exc())
-
-        raise
+    return driver
 
 
 def gerar_link_afiliado(driver, url_produto):
