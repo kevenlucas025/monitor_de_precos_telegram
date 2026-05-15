@@ -115,7 +115,21 @@ def rodar_bot():
 # =========================
 # LOOP INFINITO
 # =========================
-criar_tabelas()
+def main():
+    criar_tabelas()
 
-while True:
-    rodar_bot()
+    print("APP INICIOU")
+
+    while True:
+        try:
+            print("🔥 NOVO CICLO")
+            rodar_bot()
+
+        except Exception as e:
+            print("💥 ERRO NO LOOP:", e)
+
+        time.sleep(10)
+
+
+if __name__ == "__main__":
+    main()
