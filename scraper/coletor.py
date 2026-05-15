@@ -3,24 +3,34 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 import time
 
 
 def criar_driver():
+
     options = Options()
 
+    # chromium do linux/docker
+    options.binary_location = "/usr/bin/chromium"
+
+    # docker flags
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
+
+    # estabilidade
     options.add_argument("--window-size=1920,1080")
+    options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--remote-debugging-port=9222")
 
-    service = Service(ChromeDriverManager().install())
+    # evita alguns crashes
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-infobars")
 
-    driver = webdriver.Chrome(service=service, options=options)
+    # Selenium Manager baixa driver correto automaticamente
+    driver = webdriver.Chrome(options=options)
+
     return driver
 
 
