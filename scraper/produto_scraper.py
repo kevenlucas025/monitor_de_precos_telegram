@@ -19,27 +19,61 @@ def obter_precos(driver, url):
 
     wait = WebDriverWait(driver, 20)
 
-    titulo = wait.until(
-        EC.presence_of_element_located(
-            (By.CSS_SELECTOR, "h1.ui-pdp-title")
-        )
-    ).text
+    # ----------------------------
+    # TÍTULO (COM FALLBACK)
+    # ----------------------------
+    titulo = None
 
-    print(f"✅ Produto: {titulo}")
+    seletores_titulo = [
+        "h1.ui-pdp-title",
+        "h1",
+        "h1 span"
+    ]
 
-    preco_atual_el = wait.until(
-        EC.presence_of_element_located(
-            (
-                By.CSS_SELECTOR,
-                ".ui-pdp-price__second-line .andes-money-amount__fraction"
+    for sel in seletores_titulo:
+        try:
+            titulo = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, sel))
             )
-        )
-    )
+            break
+        except TimeoutException:
+            continue
+
+    if not titulo:
+        raise Exception("❌ Título não encontrado (layout diferente ou bloqueio)")
+
+    print(f"✅ Produto: {titulo.text}")
+
+    # ----------------------------
+    # PREÇO ATUAL
+    # ----------------------------
+    preco_atual_el = None
+
+    seletores_preco = [
+        ".ui-pdp-price__second-line .andes-money-amount__fraction",
+        ".andes-money-amount__fraction"
+    ]
+
+    for sel in seletores_preco:
+        try:
+            preco_atual_el = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, sel))
+            )
+            if preco_atual_el:
+                break
+        except TimeoutException:
+            continue
+
+    if not preco_atual_el:
+        raise Exception("❌ Preço atual não encontrado")
 
     preco_atual = converter_preco(preco_atual_el.text)
 
     print(f"💰 Preço atual: {preco_atual}")
 
+    # ----------------------------
+    # PREÇO ANTIGO
+    # ----------------------------
     preco_antigo = 0
 
     try:
@@ -49,7 +83,6 @@ def obter_precos(driver, url):
                 "//s//span[contains(@class,'andes-money-amount__fraction')]"
             ))
         )
-
         preco_antigo = converter_preco(antigo_el.text)
 
     except TimeoutException:
@@ -64,19 +97,21 @@ def obter_precos(driver, url):
             print("⚠️ preço antigo não encontrado no DOM atual")
             preco_antigo = 0
 
+    # ----------------------------
+    # DESCONTO
+    # ----------------------------
     desconto = 0
 
     if preco_antigo > 0 and preco_atual < preco_antigo:
+        desconto = ((preco_antigo - preco_atual) / preco_antigo) * 100
+        print(f"🔥 Desconto: {round(desconto, 1)}%")
 
-        desconto = (
-            (preco_antigo - preco_atual)
-            / preco_antigo
-        ) * 100
-
-        print(f"🔥 Desconto: {round(desconto,1)}%")
+    # ----------------------------
+    # IMAGEM
+    # ----------------------------
+    imagem = None
 
     try:
-
         imagem_element = driver.find_element(
             By.CSS_SELECTOR,
             "img.ui-pdp-gallery__figure__image"
@@ -90,13 +125,13 @@ def obter_precos(driver, url):
         print("✅ Imagem encontrada")
 
     except:
-
-        imagem = None
-
         print("⚠️ Imagem não encontrada")
 
+    # ----------------------------
+    # RETURN
+    # ----------------------------
     return {
-        "titulo": titulo,
+        "titulo": titulo.text,
         "atual": preco_atual,
         "antigo": preco_antigo,
         "imagem": imagem,
