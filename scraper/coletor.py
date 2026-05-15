@@ -1,12 +1,8 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.service import Service
-
 import time
 
 
@@ -18,9 +14,15 @@ def criar_driver():
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
-    options.add_argument("--remote-debugging-port=9222")
+
+    # 🔥 anti-detecção básica
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
 
     driver = webdriver.Chrome(options=options)
+    driver.set_page_load_timeout(30)
+
     return driver
 
 
@@ -77,27 +79,24 @@ def coletar_ofertas(driver):
 
     wait = WebDriverWait(driver, 20)
 
+    # 🔥 espera links reais de produto aparecerem
     wait.until(
-        EC.presence_of_element_located((By.TAG_NAME, "a"))
+        EC.presence_of_element_located(
+            (By.CSS_SELECTOR, "a[href*='/p/']")
+        )
     )
 
-    time.sleep(5)
+    time.sleep(3)
 
     links = []
 
-    elementos = driver.find_elements(By.TAG_NAME, "a")
+    elementos = driver.find_elements(By.CSS_SELECTOR, "a[href*='/p/']")
 
     for el in elementos:
-
         href = el.get_attribute("href")
 
-        if href:
-
-            if (
-                "mercadolivre.com.br/" in href
-                and "/p/" in href
-            ):
-                links.append(href)
+        if href and "mercadolivre.com.br" in href:
+            links.append(href)
 
     links = list(set(links))
 
