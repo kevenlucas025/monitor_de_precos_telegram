@@ -41,18 +41,21 @@ def rodar_bot():
         log("⛔ Limite diário atingido")
         return
 
-    log("🟡 Criando driver...")
-    driver = criar_driver()
-    carregar_cookies(driver)
-    log("✅ Driver criado")
+    driver = None
 
     try:
         log("🟡 Coletando ofertas...")
-        links = coletar_ofertas(driver)
+        links = coletar_ofertas()
+        
 
         novos_links = [url for url in links if url not in links_processados]
 
         log(f"🔎 {len(novos_links)} produtos novos encontrados")
+        
+        log("🟡 Criando driver...")
+        driver = criar_driver()
+        carregar_cookies(driver)
+        log("✅ Driver criado")
 
         for i, url in enumerate(novos_links):
 
@@ -108,7 +111,8 @@ def rodar_bot():
 
     finally:
         log("🧹 Fechando driver")
-        driver.quit()
+        if driver:
+            driver.quit()
 
 
 # =========================
