@@ -4,8 +4,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
-import traceback
 import time
+import requests
 
 
 def criar_driver():
@@ -95,62 +95,24 @@ def copiar_link_curto(driver):
     return campo.get_attribute("value")
 
 
-def coletar_ofertas(driver):
+def coletar_ofertas():
 
-    print("🟡 Abrindo Mercado Livre ofertas")
+    print("🟡 Buscando ofertas via API")
 
-    driver.get("https://www.mercadolivre.com.br/ofertas")
+    url = "https://api.mercadolibre.com/sites/MLB/search?q=ofertas"
 
-    print("✅ Página carregada")
-    
-    wait = WebDriverWait(driver, 30)
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
 
-    print("🟡 Aguardando produtos aparecerem")
-    
-    # 🔍 DEBUG AQUI
-    print("🔎 Título da página:", driver.title)
-    print("🔎 HTML inicial:")
-    print(driver.page_source[:1000])
-
-    try:
-        
-        wait.until(
-            EC.presence_of_element_located(
-                (By.CSS_SELECTOR, "a[href*='/p/']")
-            )
-        )
-    except:
-        print("❌ Timeout - página não carregou")
-        driver.save_screenshot("erro.png")
-        return []
-
-    print("✅ Produtos encontrados na página")
-
-    time.sleep(3)
+    res = requests.get(url, headers=headers)
+    data = res.json()
 
     links = []
 
-    elementos = driver.find_elements(
-        By.CSS_SELECTOR,
-        "a[href*='/p/']"
-    )
+    for item in data["results"][:20]:
+        links.append(item["permalink"])
 
-    print(f"🟡 {len(elementos)} elementos encontrados")
+    print(f"✅ {len(links)} links coletados via API")
 
-    for el in elementos:
-
-        try:
-
-            href = el.get_attribute("href")
-
-            if href and "mercadolivre.com.br" in href:
-                links.append(href)
-
-        except Exception:
-            print("⚠️ erro lendo elemento")
-
-    links = list(set(links))
-
-    print(f"✅ {len(links)} links coletados")
-
-    return links[:10]   
+    return links
