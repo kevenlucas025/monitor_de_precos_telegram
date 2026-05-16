@@ -14,7 +14,7 @@ def criar_driver():
     options.binary_location = "/usr/bin/chromium"
 
     # ESSENCIAL
-    options.add_argument("--headless=new")
+    #options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
 
@@ -106,6 +106,11 @@ def coletar_ofertas(driver):
     wait = WebDriverWait(driver, 30)
 
     print("🟡 Aguardando produtos aparecerem")
+    
+    # 🔍 DEBUG AQUI
+    print("🔎 Título da página:", driver.title)
+    print("🔎 HTML inicial:")
+    print(driver.page_source[:1000])
 
     try:
         
