@@ -3,6 +3,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service
 import traceback
 import time
 
@@ -10,26 +11,27 @@ import time
 def criar_driver():
     options = Options()
 
-    # 🔥 obrigatório no Railway
+    options.binary_location = "/usr/bin/chromium"
+
+    # ESSENCIAL
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1920,1080")
 
-    # 🔥 estabilidade extra (ESSENCIAL no ML)
+    # 🔥 EVITA CRASH
     options.add_argument("--disable-gpu")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-application-cache")
-    options.add_argument("--disable-infobars")
-    options.add_argument("--disable-notifications")
+    options.add_argument("--single-process")
+    options.add_argument("--no-zygote")
+    options.add_argument("--disable-software-rasterizer")
 
-    # 🔥 evita crash de renderização
+    # 🔥 REDUZ USO
     options.add_argument("--blink-settings=imagesEnabled=false")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-infobars")
 
-    # 🔥 reduz carga absurda do Mercado Livre
-    options.add_argument("--disable-javascript-harmony-shipping")
+    service = Service("/usr/bin/chromedriver")
 
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(service=service, options=options)
 
     return driver
 
@@ -100,16 +102,22 @@ def coletar_ofertas(driver):
     driver.get("https://www.mercadolivre.com.br/ofertas")
 
     print("✅ Página carregada")
-
+    
     wait = WebDriverWait(driver, 30)
 
     print("🟡 Aguardando produtos aparecerem")
 
-    wait.until(
-        EC.presence_of_element_located(
-            (By.CSS_SELECTOR, "a[href*='/p/']")
+    try:
+        
+        wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "a[href*='/p/']")
+            )
         )
-    )
+    except:
+        print("❌ Timeout - página não carregou")
+        driver.save_screenshot("erro.png")
+        return []
 
     print("✅ Produtos encontrados na página")
 
