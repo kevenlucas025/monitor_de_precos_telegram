@@ -7,14 +7,18 @@ load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-def enviar_mensagem(texto):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    
+
+def enviar_mensagem_com_foto(texto, imagem):
+
+    url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
+
     payload = {
         "chat_id": CHAT_ID,
-        "text": texto
+        "photo": imagem,
+        "caption": texto,
+        "parse_mode": "HTML"
     }
 
     response = requests.post(url, data=payload)
-    
+
     return response.status_code

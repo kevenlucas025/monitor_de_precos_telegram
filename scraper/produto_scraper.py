@@ -1,47 +1,140 @@
-import re
-import time
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+import traceback
 
 
-def obter_precos(url):
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("user-agent=Mozilla/5.0")
+def converter_preco(valor):
+    return float(valor.replace(".", "").replace(",", "."))
 
-    driver = webdriver.Chrome(options=options)
+
+def obter_precos(driver, url):
+
+    print(f"🟡 Abrindo produto: {url}")
+
+    driver.get(url)
+
+    print("✅ Página do produto carregada")
+
+    wait = WebDriverWait(driver, 20)
+
+    # ----------------------------
+    # TÍTULO (COM FALLBACK)
+    # ----------------------------
+    titulo = None
+
+    seletores_titulo = [
+        "h1.ui-pdp-title",
+        "h1",
+        "h1 span"
+    ]
+
+    for sel in seletores_titulo:
+        try:
+            titulo = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, sel))
+            )
+            break
+        except TimeoutException:
+            continue
+
+    if not titulo:
+        raise Exception("❌ Título não encontrado (layout diferente ou bloqueio)")
+
+    print(f"✅ Produto: {titulo.text}")
+
+    # ----------------------------
+    # PREÇO ATUAL
+    # ----------------------------
+    preco_atual_el = None
+
+    seletores_preco = [
+        ".ui-pdp-price__second-line .andes-money-amount__fraction",
+        ".andes-money-amount__fraction"
+    ]
+
+    for sel in seletores_preco:
+        try:
+            preco_atual_el = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, sel))
+            )
+            if preco_atual_el:
+                break
+        except TimeoutException:
+            continue
+
+    if not preco_atual_el:
+        raise Exception("❌ Preço atual não encontrado")
+
+    preco_atual = converter_preco(preco_atual_el.text)
+
+    print(f"💰 Preço atual: {preco_atual}")
+
+    # ----------------------------
+    # PREÇO ANTIGO
+    # ----------------------------
+    preco_antigo = 0
 
     try:
-        driver.get(url)
-        time.sleep(5)
+        antigo_el = WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((
+                By.XPATH,
+                "//s//span[contains(@class,'andes-money-amount__fraction')]"
+            ))
+        )
+        preco_antigo = converter_preco(antigo_el.text)
 
-        html = driver.page_source
+    except TimeoutException:
+        try:
+            antigo_el = driver.find_element(
+                By.XPATH,
+                "//div[contains(@class,'ui-pdp-price__second-line')]//s//span"
+            )
+            preco_antigo = converter_preco(antigo_el.text)
 
-        # 🔥 pega todos os preços da página
-        precos = re.findall(r"R\$\s?([\d\.\,]+)", html)
+        except:
+            print("⚠️ preço antigo não encontrado no DOM atual")
+            preco_antigo = 0
 
-        valores = []
-        for p in precos:
-            try:
-                p = float(p.replace(".", "").replace(",", "."))
-                valores.append(p)
-            except:
-                pass
+    # ----------------------------
+    # DESCONTO
+    # ----------------------------
+    desconto = 0
 
-        driver.quit()
+    if preco_antigo > 0 and preco_atual < preco_antigo:
+        desconto = ((preco_antigo - preco_atual) / preco_antigo) * 100
+        print(f"🔥 Desconto: {round(desconto, 1)}%")
 
-        if not valores:
-            raise Exception("Nenhum preço encontrado")
+    # ----------------------------
+    # IMAGEM
+    # ----------------------------
+    imagem = None
 
-        # 🔥 lógica importante:
-        preco_atual = min(valores)      # menor = promoção
-        preco_antigo = max(valores)     # maior = riscado
+    try:
+        imagem_element = driver.find_element(
+            By.CSS_SELECTOR,
+            "img.ui-pdp-gallery__figure__image"
+        )
 
-        return {
-            "atual": preco_atual,
-            "antigo": preco_antigo
-        }
+        imagem = (
+            imagem_element.get_attribute("data-zoom")
+            or imagem_element.get_attribute("src")
+        )
 
-    finally:
-        driver.quit()
+        print("✅ Imagem encontrada")
+
+    except:
+        print("⚠️ Imagem não encontrada")
+
+    # ----------------------------
+    # RETURN
+    # ----------------------------
+    return {
+        "titulo": titulo.text,
+        "atual": preco_atual,
+        "antigo": preco_antigo,
+        "imagem": imagem,
+        "desconto": round(desconto, 1),
+        "parcelamento": "Consulte as opções de parcelamento"
+    }
