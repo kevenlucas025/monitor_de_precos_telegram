@@ -105,14 +105,28 @@ def coletar_ofertas():
         "User-Agent": "Mozilla/5.0"
     }
 
-    res = requests.get(url, headers=headers)
-    data = res.json()
+    try:
+        res = requests.get(url, headers=headers)
+        
+        print("🔎 Status code:", res.status_code)
+        
+        data = res.json()
+        
+        print("🔎 Resposta da API:", data)
+        
+        if "results" not in data:
+            print(" 'results' não veio na resposta")
+            return []
 
-    links = []
+        links = []
 
-    for item in data["results"][:20]:
-        links.append(item["permalink"])
+        for item in data["results"][:20]:
+            links.append(item["permalink"])
 
-    print(f"✅ {len(links)} links coletados via API")
+        print(f"✅ {len(links)} links coletados via API")
 
-    return links
+        return links
+    
+    except Exception as e:
+        print("💥 ERRO NA API:", e)
+        return []
