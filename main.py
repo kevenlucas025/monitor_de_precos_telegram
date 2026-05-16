@@ -32,7 +32,6 @@ def log(msg):
 # LOOP PRINCIPAL
 # =========================
 def rodar_bot():
-
     log("=== INICIANDO CICLO ===")
 
     db = conectar()
@@ -41,24 +40,30 @@ def rodar_bot():
         log("⛔ Limite diário atingido")
         return
 
+    # IMPORTANTE: Inicializamos a variável vazia para o escopo do bloco try/finally
     driver = None
 
     try:
-        log("🟡 Coletando ofertas...")
-        links = coletar_ofertas(driver)
-        
-
-        novos_links = [url for url in links if url not in links_processados]
-
-        log(f"🔎 {len(novos_links)} produtos novos encontrados")
-        
+        # 1️⃣ PRIMEIRO: Cria o driver obrigatoriamente
         log("🟡 Criando driver...")
         driver = criar_driver()
+        
+        if driver is None:
+            log("❌ Falha crítica: O driver não pôde ser criado.")
+            return
+            
         carregar_cookies(driver)
-        log("✅ Driver criado")
+        log("✅ Driver criado com sucesso")
 
+        # 2️⃣ SEGUNDO: Agora que o driver EXISTE, coletamos as ofertas
+        log("🟡 Coletando ofertas...")
+        links = coletar_ofertas(driver) 
+        
+        novos_links = [url for url in links if url not in links_processados]
+        log(f"🔎 {len(novos_links)} produtos novos encontrados")
+
+        # 3️⃣ TERCEIRO: Loop de processamento dos produtos
         for i, url in enumerate(novos_links):
-
             log(f"\n📦 [{i+1}/{len(novos_links)}] Analisando produto")
             log(f"🔗 {url}")
 
@@ -100,7 +105,6 @@ def rodar_bot():
                 registrar_produto_enviado(url)
 
                 log("✅ Enviado com sucesso")
-
                 log("⏳ Aguardando 2 minutos...")
                 time.sleep(INTERVALO_ENVIO)
 
@@ -109,11 +113,19 @@ def rodar_bot():
                 log("💥 ERRO AO PROCESSAR PRODUTO")
                 print(traceback.format_exc())
 
-    finally:
-        log("🧹 Fechando driver")
-        if driver:
-            driver.quit()
+    except Exception as e:
+        log(f"💥 ERRO CRÍTICO NO CICLO: {e}")
+        import traceback
+        print(traceback.format_exc())
 
+    finally:
+        # O finally garante que se o driver foi aberto, ele será fechado
+        if driver is not None:
+            log("🧹 Fechando driver")
+            try:
+                driver.quit()
+            except:
+                pass
 
 # =========================
 # LOOP INFINITO
