@@ -5,7 +5,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 import time
-import requests
+import json
 
 
 def criar_driver():
@@ -95,42 +95,32 @@ def copiar_link_curto(driver):
     return campo.get_attribute("value")
 
 
-def coletar_ofertas():
-
-    print("🟡 Buscando ofertas via API")
-
+def coletar_ofertas(driver):  # <--- Recebe o driver como argumento
+    print("🟡 Buscando ofertas via API usando Selenium")
+    
     url = "https://api.mercadolibre.com/sites/MLB/search?q=ofertas"
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Connection": "keep-alive",
-        "Referer": "https://www.mercadolivre.com.br/",
-    }
-
+    
     try:
-        res = requests.get(url, headers=headers)
+        # O Selenium abre o endpoint da API
+        driver.get(url)
         
-        print("🔎 Status code:", res.status_code)
+        # Pega o texto puro que a API retornou na tela
+        corpo_pagina = driver.find_element(By.TAG_NAME, "pre").text
         
-        data = res.json()
-        
-        print("🔎 Resposta da API:", data)
+        # Converte a string de texto para um dicionário Python
+        data = json.loads(corpo_pagina)
         
         if "results" not in data:
             print(" 'results' não veio na resposta")
             return []
 
         links = []
-
         for item in data["results"][:20]:
             links.append(item["permalink"])
 
-        print(f"✅ {len(links)} links coletados via API")
-
+        print(f"✅ {len(links)} links coletados via Selenium/API")
         return links
-    
+        
     except Exception as e:
-        print("💥 ERRO NA API:", e)
+        print("💥 ERRO NA API COM SELENIUM:", e)
         return []

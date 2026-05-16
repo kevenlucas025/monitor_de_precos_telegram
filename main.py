@@ -45,7 +45,7 @@ def rodar_bot():
 
     try:
         log("🟡 Coletando ofertas...")
-        links = coletar_ofertas()
+        links = coletar_ofertas(driver)
         
 
         novos_links = [url for url in links if url not in links_processados]
