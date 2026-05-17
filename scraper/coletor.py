@@ -6,6 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 import time
 import json
+from curl_cffi import requests
 
 
 def criar_driver():
@@ -93,32 +94,40 @@ def copiar_link_curto(driver):
     return campo.get_attribute("value")
 
 
-def coletar_ofertas(driver):  # <--- Recebe o driver como argumento
-    print("🟡 Buscando ofertas via API usando Selenium")
+def coletar_ofertas():  # <--- Removeu o (driver)
+    print("🟡 Buscando ofertas via API camuflada (curl_cffi)")
     
     url = "https://api.mercadolibre.com/sites/MLB/search?q=ofertas"
     
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+    }
+    
     try:
-        # O Selenium abre o endpoint da API
-        driver.get(url)
+        # O impersonate="chrome" faz a mágica de simular a assinatura TLS do Chrome real
+        res = requests.get(url, headers=headers, impersonate="chrome124")
         
-        # Pega o texto puro que a API retornou na tela
-        corpo_pagina = driver.find_element(By.TAG_NAME, "pre").text
-        
-        # Converte a string de texto para um dicionário Python
-        data = json.loads(corpo_pagina)
+        if res.status_code != 200:
+            print(f"❌ Erro na API. Status: {res.status_code}")
+            return []
+            
+        data = res.json()
         
         if "results" not in data:
-            print(" 'results' não veio na resposta")
+            print("❌ 'results' não veio na resposta da API")
             return []
 
         links = []
         for item in data["results"][:20]:
             links.append(item["permalink"])
 
-        print(f"✅ {len(links)} links coletados via Selenium/API")
+        print(f"✅ {len(links)} links coletados com sucesso via API!")
         return links
         
     except Exception as e:
-        print("💥 ERRO NA API COM SELENIUM:", e)
+        print("💥 ERRO CRÍTICO NA COLETA DA API:", e)
         return []
