@@ -5,13 +5,19 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 import time
+import os
 import json
-from curl_cffi import requests
+import urllib.request
+import urllib.parse
+from dotenv import load_dotenv
 
+load_dotenv()
+
+CLIENT_ID = os.getenv("ML_CLIENT_ID")
+CLIENT_SECRET = os.getenv("ML_CLIENT_SECRET")
 
 def criar_driver():
     options = Options()
-
     options.binary_location = "/usr/bin/chromium"
 
     # Configurações essenciais para rodar em Docker/Railway
@@ -29,105 +35,105 @@ def criar_driver():
     options.add_argument("--disable-blink-features=AutomationControlled")
 
     service = Service("/usr/bin/chromedriver")
-
     driver = webdriver.Chrome(service=service, options=options)
-
     return driver
 
 
 def gerar_link_afiliado(driver, url_produto):
-
     print("🟡 Abrindo link builder")
-
     wait = WebDriverWait(driver, 30)
 
-    driver.get(
-        "https://www.mercadolivre.com.br/afiliados/linkbuilder#hub"
-    )
-
+    driver.get("https://www.mercadolivre.com.br/afiliados/linkbuilder#hub")
     print("✅ Link builder carregado")
 
-    textarea = wait.until(
-        EC.element_to_be_clickable((By.ID, "url-0"))
-    )
-
+    textarea = wait.until(EC.element_to_be_clickable((By.ID, "url-0")))
     print("✅ Campo encontrado")
 
     url_produto = url_produto.split("#")[0]
-
     textarea.clear()
     textarea.send_keys(url_produto)
-
     print("✅ URL preenchida")
 
-    gerar_btn = wait.until(
-        EC.element_to_be_clickable(
-            (By.XPATH, "//button[contains(., 'Gerar')]")
-        )
-    )
-
+    gerar_btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Gerar')]")))
     print("✅ Botão gerar encontrado")
-
     gerar_btn.click()
-
     print("✅ Botão clicado")
 
     time.sleep(5)
-
     return True
 
 
 def copiar_link_curto(driver):
-
     print("🟡 Copiando link curto")
-
     wait = WebDriverWait(driver, 30)
-
-    campo = wait.until(
-        EC.presence_of_element_located(
-            (By.XPATH, "//textarea[contains(@id,'textfield-copyLink')]")
-        )
-    )
-
+    campo = wait.until(EC.presence_of_element_located((By.XPATH, "//textarea[contains(@id,'textfield-copyLink')]")))
     print("✅ Link curto encontrado")
-
     return campo.get_attribute("value")
 
 
-def coletar_ofertas():  # <--- Removeu o (driver)
-    print("🟡 Buscando ofertas via API camuflada (curl_cffi)")
+def obter_acesso_token():
+    url = "https://api.mercadolibre.com/oauth/token"
     
-    url = "https://api.mercadolibre.com/sites/MLB/search?q=ofertas"
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
+    payload = {
+        "grant_type": "client_credentials",
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET
     }
     
+    # Transforma o dicionário no formato x-www-form-urlencoded exigido pela API
+    data = urllib.parse.urlencode(payload).encode("utf-8")
+    
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Accept", "application/json")
+    req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    
     try:
-        # O impersonate="chrome" faz a mágica de simular a assinatura TLS do Chrome real
-        res = requests.get(url, headers=headers, impersonate="chrome124")
-        
-        if res.status_code != 200:
-            print(f"❌ Erro na API. Status: {res.status_code}")
-            return []
-            
-        data = res.json()
-        
-        if "results" not in data:
-            print("❌ 'results' não veio na resposta da API")
-            return []
-
-        links = []
-        for item in data["results"][:20]:
-            links.append(item["permalink"])
-
-        print(f"✅ {len(links)} links coletados com sucesso via API!")
-        return links
-        
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if response.status == 200:
+                res_data = json.loads(response.read().decode("utf-8"))
+                return res_data.get("access_token")
+            else:
+                print(f"❌ Erro ao gerar token oficial: {response.status}")
+                return None
     except Exception as e:
-        print("💥 ERRO CRÍTICO NA COLETA DA API:", e)
+        print(f"💥 Falha na autenticação com o Mercado Livre: {e}")
+        return None
+
+
+def coletar_ofertas():
+    print("🟡 Buscando ofertas via API Oficial do Mercado Livre")
+    
+    token = obter_acesso_token()
+    if not token:
+        print("❌ Coleta abortada: Não foi possível obter o Access Token.")
+        return []
+
+    url = "https://api.mercadolibre.com/sites/MLB/search?q=ofertas"
+    
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Accept", "application/json")
+    
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            if response.status != 200:
+                print(f"❌ Erro na API. Status: {response.status}")
+                return []
+                
+            data = json.loads(response.read().decode("utf-8"))
+            
+            if "results" not in data:
+                print("❌ Estrutura 'results' não foi encontrada no JSON")
+                return []
+            
+            links = []
+            for item in data['results'][:20]:
+                if "permalink" in item:
+                    links.append(item["permalink"])
+
+            print(f"✅ {len(links)} links coletados com sucesso e de forma oficial!")
+            return links
+            
+    except Exception as e:
+        print("💥 ERRO CRÍTICO NA REQUISIÇÃO DA API:", e)
         return []
