@@ -13,21 +13,19 @@ def criar_driver():
 
     options.binary_location = "/usr/bin/chromium"
 
-    # ESSENCIAL
+    # Configurações essenciais para rodar em Docker/Railway
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-
-    # 🔥 EVITA CRASH
+    options.add_argument("--disable-dev-shm-usage")  # Força o Chrome a usar a RAM normal (/tmp) em vez de /dev/shm
     options.add_argument("--disable-gpu")
-    options.add_argument("--single-process")
-    options.add_argument("--no-zygote")
-    options.add_argument("--disable-software-rasterizer")
 
-    # 🔥 REDUZ USO
+    # Otimizações de performance (reduz consumo)
     options.add_argument("--blink-settings=imagesEnabled=false")
     options.add_argument("--disable-extensions")
-    options.add_argument("--disable-infobars")
+    options.add_argument("--disable-software-rasterizer")
+
+    # Remove detecção de automação básica (evita bloqueios iniciais)
+    options.add_argument("--disable-blink-features=AutomationControlled")
 
     service = Service("/usr/bin/chromedriver")
 
