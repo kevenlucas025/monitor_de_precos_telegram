@@ -4,3 +4,6 @@ venv/
 .venv/
 env/
 env
+monitir_precos.db
+__pycache__/
+*.pyc
