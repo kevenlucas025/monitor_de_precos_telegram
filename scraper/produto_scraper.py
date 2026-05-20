@@ -30,19 +30,28 @@ def obter_precos(driver, url):
         "h1 span"
     ]
 
+    
     for sel in seletores_titulo:
         try:
-            titulo = WebDriverWait(driver, 5).until(
+            elemento = WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, sel))
             )
-            break
+
+            titulo = elemento.text.strip()
+
+            if titulo:
+                break
+
         except TimeoutException:
             continue
 
-    if not titulo:
-        raise Exception("❌ Título não encontrado (layout diferente ou bloqueio)")
+        except Exception:
+            continue
 
-    print(f"✅ Produto: {titulo.text}")
+    if not titulo:
+        raise Exception("❌ Título não encontrado")
+
+    print(f"✅ Produto: {titulo}")
 
     # ----------------------------
     # PREÇO ATUAL
@@ -109,29 +118,39 @@ def obter_precos(driver, url):
     # ----------------------------
     # IMAGEM
     # ----------------------------
+    # ----------------------------
     imagem = None
 
     try:
-        imagem_element = driver.find_element(
-            By.CSS_SELECTOR,
-            "img.ui-pdp-gallery__figure__image"
+        imagem_element = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "img.ui-pdp-image")
+            )
         )
 
-        imagem = (
-            imagem_element.get_attribute("data-zoom")
-            or imagem_element.get_attribute("src")
-        )
+        atributos = [
+            "data-zoom",
+            "data-src",
+            "src",
+        ]
 
-        print("✅ Imagem encontrada")
+        for attr in atributos:
+            valor = imagem_element.get_attribute(attr)
 
-    except:
-        print("⚠️ Imagem não encontrada")
+            if valor and valor.startswith("http"):
+                imagem = valor
+                break
+
+        print(f"🖼️ IMAGEM CAPTURADA: {imagem}")
+
+    except Exception as e:
+        print(f"⚠️ Erro ao capturar imagem: {e}")
 
     # ----------------------------
     # RETURN
     # ----------------------------
     return {
-        "titulo": titulo.text,
+        "titulo": titulo,
         "atual": preco_atual,
         "antigo": preco_antigo,
         "imagem": imagem,

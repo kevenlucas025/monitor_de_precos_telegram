@@ -40,31 +40,30 @@ def rodar_bot():
         log("⛔ Limite diário atingido")
         return
 
-    # Inicializamos a variável vazia para controle do bloco try/finally
     driver = None
 
     try:
-        # 1️⃣ PRIMEIRO: Coleta as ofertas usando a API camuflada (sem gastar memória com Chrome)
-        log("🟡 Coletando ofertas...")
-        links = coletar_ofertas() 
+        # 1️⃣ PRIMEIRO: Instancia o navegador local, pois precisamos dele para a raspagem das ofertas
+        log("🟡 Criando driver para iniciar ciclo...")
+        driver = criar_driver()
         
-        # Filtra para identificar se existem links que ainda não foram processados
+        if driver is None:
+            log("❌ Falha crítica: O driver não pôde ser criado.")
+            return
+            
+        carregar_cookies(driver)
+        log("✅ Driver criado com sucesso")
+
+        # 2️⃣ SEGUNDO: Raspa a página de ofertas passando o navegador como ferramenta
+        log("🟡 Coletando ofertas...")
+        links = coletar_ofertas(driver)
+
+        # Filtra para descobrir itens inéditos
         novos_links = [url for url in links if url not in links_processados]
         log(f"🔎 {len(novos_links)} produtos novos encontrados")
 
-        # 2️⃣ SEGUNDO: Só inicializa o Selenium se houver trabalho para fazer
+        # 3️⃣ TERCEIRO: Loop de processamento de promoções
         if novos_links:
-            log("🟡 Criando driver para analisar produtos...")
-            driver = criar_driver()
-            
-            if driver is None:
-                log("❌ Falha crítica: O driver não pôde ser criado.")
-                return
-                
-            carregar_cookies(driver)
-            log("✅ Driver criado com sucesso")
-
-            # 3️⃣ TERCEIRO: Loop de processamento dos produtos encontrados
             for i, url in enumerate(novos_links):
                 log(f"\n📦 [{i+1}/{len(novos_links)}] Analisando produto")
                 log(f"🔗 {url}")
@@ -99,6 +98,7 @@ def rodar_bot():
                         f"💸 Antes: {formatar_br(dados['antigo'])}\n"
                         f"💰 Agora: {formatar_br(dados['atual'])}\n"
                         f"📉 Desconto: {dados['desconto']}%\n\n"
+                        f"💳 {dados['parcelamento']}\n\n"
                         f"🔗 {link_curto}",
                         dados["imagem"]
                     )
@@ -114,9 +114,8 @@ def rodar_bot():
                     import traceback
                     log("💥 ERRO AO PROCESSAR PRODUTO")
                     print(traceback.format_exc())
-                    
         else:
-            log("⏳ Sem novidades neste ciclo. Pulando abertura do navegador.")
+            log("⏳ Sem novidades neste ciclo.")
 
     except Exception as e:
         log(f"💥 ERRO CRÍTICO NO CICLO: {e}")
@@ -124,7 +123,7 @@ def rodar_bot():
         print(traceback.format_exc())
 
     finally:
-        # Garante o fechamento seguro do navegador caso ele tenha sido instanciado
+        # Garante o encerramento da sessão do navegador local ao fim do ciclo
         if driver is not None:
             log("🧹 Fechando driver")
             try:
