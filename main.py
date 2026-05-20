@@ -32,7 +32,6 @@ def log(msg):
 # LOOP PRINCIPAL
 # =========================
 def rodar_bot():
-
     log("=== INICIANDO CICLO ===")
 
     db = conectar()
@@ -41,75 +40,97 @@ def rodar_bot():
         log("⛔ Limite diário atingido")
         return
 
-    log("🟡 Criando driver...")
-    driver = criar_driver()
-    carregar_cookies(driver)
-    log("✅ Driver criado")
+    # Inicializamos a variável vazia para controle do bloco try/finally
+    driver = None
 
     try:
+        # 1️⃣ PRIMEIRO: Coleta as ofertas usando a API camuflada (sem gastar memória com Chrome)
         log("🟡 Coletando ofertas...")
-        links = coletar_ofertas(driver)
-
+        links = coletar_ofertas() 
+        
+        # Filtra para identificar se existem links que ainda não foram processados
         novos_links = [url for url in links if url not in links_processados]
-
         log(f"🔎 {len(novos_links)} produtos novos encontrados")
 
-        for i, url in enumerate(novos_links):
+        # 2️⃣ SEGUNDO: Só inicializa o Selenium se houver trabalho para fazer
+        if novos_links:
+            log("🟡 Criando driver para analisar produtos...")
+            driver = criar_driver()
+            
+            if driver is None:
+                log("❌ Falha crítica: O driver não pôde ser criado.")
+                return
+                
+            carregar_cookies(driver)
+            log("✅ Driver criado com sucesso")
 
-            log(f"\n📦 [{i+1}/{len(novos_links)}] Analisando produto")
-            log(f"🔗 {url}")
+            # 3️⃣ TERCEIRO: Loop de processamento dos produtos encontrados
+            for i, url in enumerate(novos_links):
+                log(f"\n📦 [{i+1}/{len(novos_links)}] Analisando produto")
+                log(f"🔗 {url}")
 
-            links_processados.add(url)
+                links_processados.add(url)
 
-            try:
-                if produto_ja_enviado(url):
-                    log("⚠️ Já enviado, pulando")
-                    continue
+                try:
+                    if produto_ja_enviado(url):
+                        log("⚠️ Já enviado, pulando")
+                        continue
 
-                log("🟡 Abrindo página do produto...")
-                dados = obter_precos(driver, url)
+                    log("🟡 Abrindo página do produto...")
+                    dados = obter_precos(driver, url)
 
-                log(f"💰 Preço atual: {dados['atual']}")
-                log(f"🏷️ Preço antigo: {dados['antigo']}")
+                    log(f"💰 Preço atual: {dados['atual']}")
+                    log(f"🏷️ Preço antigo: {dados['antigo']}")
 
-                if not (dados["antigo"] > 0 and dados["atual"] < dados["antigo"]):
-                    log("❌ Sem promoção detectada")
-                    continue
+                    if not (dados["antigo"] > 0 and dados["atual"] < dados["antigo"]):
+                        log("❌ Sem promoção detectada")
+                        continue
 
-                log("🔥 PROMOÇÃO ENCONTRADA")
+                    log("🔥 PROMOÇÃO ENCONTRADA")
 
-                gerar_link_afiliado(driver, url)
-                link_curto = copiar_link_curto(driver) or url
+                    gerar_link_afiliado(driver, url)
+                    link_curto = copiar_link_curto(driver) or url
 
-                log("📤 Enviando Telegram...")
+                    log("📤 Enviando Telegram...")
 
-                enviar_mensagem_com_foto(
-                    f"🔥 PROMOÇÃO ENCONTRADA!\n\n"
-                    f"<b>{dados['titulo']}</b>\n\n"
-                    f"💸 Antes: {formatar_br(dados['antigo'])}\n"
-                    f"💰 Agora: {formatar_br(dados['atual'])}\n"
-                    f"📉 Desconto: {dados['desconto']}%\n\n"
-                    f"🔗 {link_curto}",
-                    dados["imagem"]
-                )
+                    enviar_mensagem_com_foto(
+                        f"🔥 PROMOÇÃO ENCONTRADA!\n\n"
+                        f"<b>{dados['titulo']}</b>\n\n"
+                        f"💸 Antes: {formatar_br(dados['antigo'])}\n"
+                        f"💰 Agora: {formatar_br(dados['atual'])}\n"
+                        f"📉 Desconto: {dados['desconto']}%\n\n"
+                        f"🔗 {link_curto}",
+                        dados["imagem"]
+                    )
 
-                registrar_envio(db)
-                registrar_produto_enviado(url)
+                    registrar_envio(db)
+                    registrar_produto_enviado(url)
 
-                log("✅ Enviado com sucesso")
+                    log("✅ Enviado com sucesso")
+                    log("⏳ Aguardando 2 minutos...")
+                    time.sleep(INTERVALO_ENVIO)
 
-                log("⏳ Aguardando 2 minutos...")
-                time.sleep(INTERVALO_ENVIO)
+                except Exception:
+                    import traceback
+                    log("💥 ERRO AO PROCESSAR PRODUTO")
+                    print(traceback.format_exc())
+                    
+        else:
+            log("⏳ Sem novidades neste ciclo. Pulando abertura do navegador.")
 
-            except Exception:
-                import traceback
-                log("💥 ERRO AO PROCESSAR PRODUTO")
-                print(traceback.format_exc())
+    except Exception as e:
+        log(f"💥 ERRO CRÍTICO NO CICLO: {e}")
+        import traceback
+        print(traceback.format_exc())
 
     finally:
-        log("🧹 Fechando driver")
-        driver.quit()
-
+        # Garante o fechamento seguro do navegador caso ele tenha sido instanciado
+        if driver is not None:
+            log("🧹 Fechando driver")
+            try:
+                driver.quit()
+            except:
+                pass
 
 # =========================
 # LOOP INFINITO
